@@ -13,7 +13,9 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 
 def env(name: str, default: str = "") -> str:
-    return os.environ.get(name, default)
+    """Empty-string values (e.g. RELAY_URLS= in .env) behave as unset."""
+    value = os.environ.get(name)
+    return value if value else default
 
 
 KAFKA_BROKERS = env("KAFKA_BROKERS", "localhost:9092").split(",")

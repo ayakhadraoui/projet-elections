@@ -4,6 +4,12 @@ from __future__ import annotations
 import json
 import os
 from functools import lru_cache
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# every python service run from the repo root picks up the same .env file
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 
 def env(name: str, default: str = "") -> str:

@@ -44,6 +44,11 @@ def query_alerts(client: httpx.Client) -> dict | None:
 
 
 def decide() -> str:
+    # Local-dev switch: without real cloud metrics, Prometheus "sees" nothing and
+    # would wrongly fail over; STANDALONE mode short-circuits this.
+    if cfg.env("FAILOVER_STANDALONE") in ("1", "true", "yes"):
+        return cfg.PRIMARY_CLOUD_NAME
+
     alert_names = set()
     series = query_alerts(httpx)
     if series is not None:  # Prometheus answered

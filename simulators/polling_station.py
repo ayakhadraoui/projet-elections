@@ -102,6 +102,11 @@ async def run_one(station: dict, interval: int, fraud: str | None, rounds: int) 
             await asyncio.sleep(interval)
 
 
+async def main() -> None:
+    stations = [make_station(i) for i in range(1, args.stations + 1)]
+    await asyncio.gather(*(run_one(s, args.interval, args.fraud, args.rounds) for s in stations))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stations", type=int, default=5)
@@ -109,8 +114,4 @@ if __name__ == "__main__":
     parser.add_argument("--fraud", choices=["turnout", "late", "dup", "jump"], default=None)
     parser.add_argument("--rounds", type=int, default=8)
     args = parser.parse_args()
-
-    stations = [make_station(i) for i in range(1, args.stations + 1)]
-    asyncio.run(asyncio.gather(
-        *(run_one(s, args.interval, args.fraud, args.rounds) for s in stations)
-    ))
+    asyncio.run(main())

@@ -1,0 +1,55 @@
+# Patroni config template — PostgreSQL replication Azure ↔ Oracle
+# Layout: Patroni runs on the two DB VMs and elects the primary among them,
+# so that the standby is promoted automatically when the primary fails.
+#
+# Spot or production:
+#   - Azure VM: patroni/patroni.yml  (primary side, but keep leader_election automatic)
+#   - Oracle VM: same file with the node names/IPs swapped
+# Docs: docs/03-sync-failover.md
+
+scope: elections
+namespace: /projet-elections/
+name: <NODE_NAME>            # e.g. pg-azure on Azure, pg-oracle on Oracle
+
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: '<THIS_TS_IP>:8008'    # Tailscale IP of this VM
+
+etcd:
+  hosts: <GCP_TS_IP>:2379                 # etcd on the GCP VM (the "referee" of DCS)
+
+bootstrap:
+  dcs:
+    ttl: 10
+    loop_wait: 5
+    retry_timeout: 6                      # aggressive: fast automatic promotion
+    max_lsn_lag: 3355443                  # seconds of WAL lag tolerated for promotable standby
+    postgresql:
+      parameters:
+        max_wal_size: 1GB
+        wal_level: replica
+        hot_standby: "on"
+        synchronous_commit: "on"          # transactional safety for the votes
+      use_slots: true
+  initdb:
+    - encoding: UTF8
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: '<THIS_TS_IP>:5432'
+  data_dir: /var/lib/postgresql/15/patroni
+  bin_dir: /usr/lib/postgresql/15/bin
+  authentication:
+    superuser: { username: postgres, password: <SUPERUSER_PASSWORD> }
+    replication: { username: replicator, password: <REPL_PASSWORD> }
+  parameters:
+    checkpoint_timeout: 5min
+    hot_standby: "on"
+  pg_hba:
+    - local all postgres peer
+    - host replication replicator 100.0.0.0/8 trust    # the Tailscale mesh only
+    - host all all 100.0.0.0/8 trust
+
+tags:
+  nofailover: false
+  nostream: false

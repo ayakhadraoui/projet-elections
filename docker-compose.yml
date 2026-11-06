@@ -1,0 +1,74 @@
+# Local all-in-one stack for development (NOT the production architecture).
+# Kafka (KRaft), PostgreSQL, Grafana, Prometheus — everything from the IaaS VMs,
+# compressed into one file for the "local first" workflow.
+
+name: projet-elections
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: election
+      POSTGRES_PASSWORD: election
+      POSTGRES_DB: elections
+    ports: ["5432:5432"]
+    volumes:
+      - ./infra/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U election"]
+      interval: 3s
+      retries: 10
+
+  kafka:
+    image: bitnami/kafka:3.7
+    environment:
+      # KRaft single-node — no zookeeper
+      KAFKA_CFG_NODE_ID: "1"
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports: ["9092:9092", "29092:29092"]
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server kafka:9092 --list | grep -q ."]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # creates the 3 topics: vote_reports / aggregated_results / anomalies
+  kafka-init:
+    image: bitnami/kafka:3.7
+    depends_on:
+      kafka: { condition: service_healthy }
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
+      "
+      kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic vote_reports        --partitions 3 --replication-factor 1 &&
+      kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic aggregated_results  --partitions 3 --replication-factor 1 &&
+      kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic anomalies           --partitions 3 --replication-factor 1
+      "
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/rules:/etc/prometheus/rules:ro
+    ports: ["9090:9090"]
+    # local rewrites of the Tailscale targets (host.docker.internal:97xx)
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports: ["3001:3000"]
+    depends_on: [prometheus]

@@ -1,0 +1,10 @@
+name = "election-notifications"
+main = "index.js"
+compatibility_date = "2025-09-01"
+
+[[kv_namespaces]]
+binding = "ANOMALIES"
+# id = "<created by `npx wrangler kv namespace create ANOMALIES`>"
+
+[observability]
+enabled = true

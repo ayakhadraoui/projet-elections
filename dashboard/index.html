@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tableau de bord électoral</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 900px; padding: 0 1rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #9993; padding: .4rem .6rem; text-align: left; }
+    th { background: rgba(127,127,127,.12); }
+    h2 { margin-top: 2rem; }
+    .badge { display: inline-block; padding: .1rem .6rem; border-radius: 1rem; font-size: .8rem; }
+    .badge.fraud { background: #c0392b; color: #fff; }
+    .ok { color: #1a7f37; font-size: .85rem; }
+    #live { font-size: 3rem; }
+  </style>
+</head>
+<body>
+  <h1>🗳️ Résultats électoraux en direct</h1>
+  <p id="updated" class="ok">connecting…</p>
+
+  <h2>Total national</h2>
+  <table id="national"><thead><tr><th>Candidat</th><th>Voix</th></tr></thead><tbody></tbody></table>
+
+  <h2>Par région</h2>
+  <div id="regions"></div>
+
+  <h2>🚨 Anomalies détectées</h2>
+  <table id="anomalies"><thead>
+    <tr><th>Bureau</th><th>Type</th><th>Détail</th><th>Détecté</th></tr>
+  </thead><tbody></tbody></table>
+
+  <script>
+    // URL of the Dashboard API on Render; default = local dev
+    const DASHBOARD_API_URL = window.DASHBOARD_API_URL || "http://localhost:8001";
+    const $ = sel => document.querySelector(sel);
+
+    async function refresh() {
+      try {
+        const [live, anoms] = await Promise.all([
+          fetch(DASHBOARD_API_URL + "/live").then(r => r.json()),
+          fetch(DASHBOARD_API_URL + "/anomalies").then(r => r.json()),
+        ]);
+
+        $("#updated").textContent = "✅ " + (live.generated_at ? live.generated_at : "live") +
+          (live.ballots_cast ? ` · ${live.ballots_cast.toLocaleString()} bulletins` : "");
+
+        const nat = $("#national tbody"); nat.innerHTML = "";
+        Object.entries(live.total ?? {}).sort((a, b) => b[1] - a[1]).forEach(([c, v]) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${c}</td><td>${v.toLocaleString()}</td>`;
+          nat.append(tr);
+        });
+
+        const wrap = $("#regions"); wrap.innerHTML = "";
+        (live.regions ?? []).forEach(r => {
+          const h = document.createElement("h3"); h.textContent = r.region; wrap.append(h);
+          const t = document.createElement("table");
+          Object.entries(r.results).sort((a, b) => b[1] - a[1]).forEach(([c, v]) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td>${c}</td><td>${v.toLocaleString()}</td>`;
+            t.append(tr);
+          });
+          wrap.append(t);
+        });
+
+        const anT = $("#anomalies tbody"); anT.innerHTML = "";
+        (anoms.anomalies ?? []).forEach(a => {
+          const tr = document.createElement("tr");
+          const d = new Date(a.detected_at).toLocaleString("fr-FR");
+          tr.innerHTML =
+            `<td>${a.station_id ?? ""}</td>
+             <td><span class="badge fraud">${a.kind}</span></td>
+             <td>${a.details ?? ""}</td><td>${d}</td>`;
+          anT.append(tr);
+        });
+      } catch (e) {
+        $("#updated").textContent = "⚠️ " + e;
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 10_000);
+  </script>
+</body>
+</html>

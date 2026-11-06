@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portail de soumission — Résultats électoraux</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; }
+    fieldset { margin: 1rem 0; padding: 1rem; }
+    label { display: block; margin-top: .75rem; font-size: .9rem; }
+    input { width: 100%; padding: .5rem; }
+    button { margin-top: 1rem; padding: .6rem 1.2rem; }
+    .ok { color: #1a7f37; } .err { color: #c0392b; }
+  </style>
+</head>
+<body>
+  <h1>📍 Portail de soumission</h1>
+  <p>Interface dédiée aux bureaux de vote : publication unique du rapport final,
+     lorsque le scrutin est clôturé. Tous les résultats transittent par ce portail.</p>
+
+  <fieldset>
+    <legend>Identité du bureau</legend>
+    <label>Station ID <input id="stationId" value="station-001" /></label>
+    <label>Clé du bureau (X-Station-Key) <input id="stationKey" value="key-001" /></label>
+    <label>Région / Département <input id="region" value="Casablanca" /></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Rapport</legend>
+    <label>Electeurs inscrits <input id="registered" type="number" min="0" step="1" value="1000" /></label>
+    <label>Bulletins dépouillés (cumul) <input id="ballots" type="number" min="0" step="1" value="900" /></label>
+    <label>Voix — Cand. A (cumul) <input id="votesA" type="number" min="0" step="1" value="480" /></label>
+    <label>Voix — Cand. B (cumul) <input id="votesB" type="number" min="0" step="1" value="420" /></label>
+    <label>Clôture du scrutin <input id="closedAt" type="datetime-local" /></label>
+  </fieldset>
+
+  <button id="submit">Publier le rapport</button>
+  <p id="feedback"></p>
+
+  <script>
+    // URL of the Ingestion API on Render; default = local dev
+    const INGEST_API_URL = window.INGEST_API_URL || "http://localhost:8000";
+    // secret portal→ingestion; inject via env var in production
+    const INGEST_API_SECRET = window.INGEST_API_SECRET || "dev-secret";
+
+    document.getElementById("closedAt").value =
+      new Date(Date.now() - 3600_0).toISOString().slice(0, 16);
+
+    document.getElementById("submit").addEventListener("click", async () => {
+      const $ = id => document.getElementById(id);
+      const payload = {
+        station_id: $("stationId").value,
+        region: $("region").value,
+        election_id: "national-2026",
+        polls_closed_at: new Date($("closedAt").value + ":00Z").toISOString(),
+        published_at: new Date().toISOString(),
+        registered_voters: parseInt($("registered").value, 10),
+        ballots_cast: parseInt($("ballots").value, 10),
+        candidates: {
+          "Cand. A": parseInt($("votesA").value, 10),
+          "Cand. B": parseInt($("votesB").value, 10),
+        },
+      };
+      const feedback = $("feedback");
+      try {
+        const r = await fetch(INGEST_API_URL + "/reports", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + INGEST_API_SECRET,
+            "X-Station-Key": $("stationKey").value,
+          },
+          body: JSON.stringify(payload),
+        });
+        const body = await r.json();
+        feedback.className = r.ok ? "ok" : "err";
+        feedback.textContent = r.ok
+          ? `✅ accepté (cloud actif: ${body.active_cloud})`
+          : `❌ ${HTTPError(r.status)} — ${body.detail ?? "?"}`;
+      } catch (e) {
+        feedback.className = "err";
+        feedback.textContent = "❌ réseau: " + e;
+      }
+    });
+
+    function HTTPError(status) {
+      return { 401: "bureau inconnu", 409: "doublon", 422: "rapport invalide" }[status] ?? "erreur";
+    }
+  </script>
+</body>
+</html>

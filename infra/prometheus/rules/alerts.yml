@@ -1,0 +1,49 @@
+# Alert rules — these are what the Failover Controller polls.
+# Replace <AZURE_TS_IP> / <ORACLE_TS_IP> by the Tailscale IPs.
+
+groups:
+  - name: cloud-health
+    rules:
+      - alert: AzureDown
+        expr: up{job=~"azure-.*"} == 0 or absent(up{job="azure-node"})
+        for: 15s
+        labels:
+          severity: critical
+          cloud: azure
+        annotations:
+          summary: "Azure unreachable — failover to Oracle"
+
+      - alert: AzureOverloaded
+        # CPU saturation also causes a controlled failover
+        expr: 100 - (avg by (job) (irate(node_cpu_seconds_total{job="azure-node", mode="idle"}[1m])) * 100) > 90
+        for: 30s
+        labels:
+          severity: warning
+          cloud: azure
+        annotations:
+          summary: "Azure saturated (> 90 % CPU)"
+
+      - alert: OracleDown
+        expr: up{job=~"oracle-.*"} == 0 or absent(up{job="oracle-node"})
+        for: 15s
+        labels:
+          severity: critical
+          cloud: oracle
+        annotations:
+          summary: "Oracle (standby) unreachable — losing the second plan!"
+
+      - alert: PostgreSQLReplicationLag
+        expr: pg_replication_lag_seconds > 5
+        for: 20s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Patroni replication lagging: zero data loss at risk"
+
+      - alert: KafkaReplicationGap
+        expr: mm2_mirroring_lag > 100
+        for: 20s
+        labels:
+          severity: warning
+        annotations:
+          summary: "kafka MirrorMaker 2 lagging between Azure and Oracle"

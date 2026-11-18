@@ -131,9 +131,15 @@ def election(election_id: str) -> dict:
 # --------------------------------------------------------------------------
 ANOMALIES: list[dict] = []
 _ANOMALIES_LOCK = threading.Lock()
+_consumer_started = False
 
 
 def _consume_anomalies_forever() -> None:
+    global _consumer_started
+    if _consumer_started:
+        return
+    _consumer_started = True
+    log.info("anomaly consumer thread starting…")
     for message in consume(cfg.TOPIC_ANOMALIES, group_id="dashboard-anomalies"):
         with _ANOMALIES_LOCK:
             ANOMALIES.insert(0, message)
@@ -149,5 +155,6 @@ def anomalies() -> dict:
 
 
 if __name__ == "__main__":
+    threading.Thread(target=_consume_anomalies_forever, daemon=True).start()
     start_http_server(9701)
     uvicorn.run(app, host="0.0.0.0", port=8001)

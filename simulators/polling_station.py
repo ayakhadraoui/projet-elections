@@ -71,7 +71,6 @@ def build_report(station: dict, fraud: str | None, last_report: dict | None) -> 
         "station_id": station["station_id"],
         "region": station["region"],
         "polls_closed_at": closed.isoformat(),
-        "published_at": published.isoformat(),
         "registered_voters": station["registered_voters"],
         "ballots_cast": station["ballots_cast"],
         "candidates": dict(station["per_candidate"]),

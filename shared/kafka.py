@@ -32,14 +32,29 @@ def get_producer() -> KafkaProducer:
 
 
 def publish(topic: str, key: str, payload: dict) -> None:
-    """Send + flush-with-handler. NEVER raises: votes must never block the pipeline,
-    but failures are logged loudly (they are exactly what failover is for)."""
-    try:
-        get_producer().send(topic, key=key, value=payload)
-        get_producer().flush(timeout=10)
-        log.info("published to %s key=%s", topic, key)
-    except Exception:
-        log.exception("FAILED to publish to %s key=%s", topic, key)
+    """Send + flush, with a few retries. Raises on hard failure so that callers
+    (the APIs) can answer 502 instead of silently dropping votes."""
+    last_exc: Exception | None = None
+    for attempt in (1, 2, 3):
+        try:
+            producer = get_producer()
+            producer.send(topic, key=key, value=payload)
+            producer.flush(timeout=10)
+            log.info("published to %s key=%s", topic, key)
+            return
+        except Exception as exc:
+            last_exc = exc
+            log.warning("publish attempt %d to %s failed: %s", attempt, topic, exc)
+            global _producer  # force a fresh connection on the next attempt
+            with _producer_lock:
+                try:
+                    if _producer is not None:
+                        _producer.close()
+                except Exception:
+                    pass
+                _producer = None
+            time.sleep(1)
+    raise RuntimeError(f"could not publish to {topic!r}: {last_exc}")
 
 
 def consume(topic: str, group_id: str) -> Iterator[dict]:

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1a2332; margin: 0; font-size: 11.5px; line-height: 1.45; }
+  .banner { background: #16305c; color: #fff; padding: 14px 18px; border-radius: 8px; margin-bottom: 10px; }
+  .banner h1 { margin: 0; font-size: 19px; }
+  .banner p { margin: 4px 0 0; color: #cdd9f2; font-size: 11.5px; }
+  h2 { font-size: 13.5px; color: #16305c; border-bottom: 2px solid #2e6fdb; padding-bottom: 2px; margin: 14px 0 6px; }
+  .flow { background: #f4f7fc; border: 1px solid #d5e0f2; border-radius: 8px; padding: 10px 12px; font-size: 11px; }
+  .flow b { color: #16305c; }
+  .arrow { color: #2e6fdb; font-weight: bold; }
+  table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 10.5px; }
+  th { background: #16305c; color: #fff; text-align: left; padding: 4px 7px; }
+  td { border: 1px solid #d5e0f2; padding: 4px 7px; vertical-align: top; }
+  tr:nth-child(even) td { background: #f4f7fc; }
+  .tag { display: inline-block; padding: 0 6px; border-radius: 9px; font-size: 9.5px; font-weight: 600; }
+  .ok  { background: #d9f2e0; color: #14713d; }
+  .todo{ background: #fde3d3; color: #a34a00; }
+  .cols { display: flex; gap: 14px; }
+  .cols > div { flex: 1; }
+  ul { margin: 2px 0 6px; padding-left: 18px; }
+  .key { background: #fff7e0; border-left: 4px solid #e6a817; padding: 6px 10px; border-radius: 0 6px 6px 0; margin: 6px 0; font-size: 11px; }
+  code { background: #eef2fa; padding: 1px 4px; border-radius: 3px; font-size: 10px; }
+  .cmd { background: #1f2937; color: #d7f8de; padding: 8px 10px; border-radius: 6px; font-family: Consolas, monospace; font-size: 10px; white-space: pre; }
+  .foot { margin-top: 10px; font-size: 9.5px; color: #6b7686; text-align: center; }
+  .big { font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <h1>🗳️ Projet Élections — Plateforme électorale temps réel multi-cloud</h1>
+  <p>Diae EL Mokhtari · Aya Khadraoui · Hind EL YOUBI · Ibtissam EL ASSLOUJ — Cloud Computing</p>
+</div>
+
+<div class="key big"><b>En une phrase :</b> les bureaux de vote publient leurs résultats en direct, les fraudes sont détectées automatiquement, et si le cloud primaire tombe en panne, le cloud de secours synchronisé prend le relais <b>sans aucune intervention</b> — 6 clouds, 5 fournisseurs différents.</div>
+
+<h2>1 · Le trajet d'un vote</h2>
+<div class="flow">
+  <b>Bureau de vote</b> <span class="arrow">→</span> <b>Portail de soumission</b> <span class="arrow">→</span> <b>API d'ingestion</b> <span class="arrow">→</span> « Quel cloud est actif ? » <span class="arrow">→</span> <b>Failover Controller</b> <span class="arrow">→</span> <b>Kafka</b> <span class="arrow">→</span> <b>Agrégateur</b> + <b>Moteur d'anomalies</b> <span class="arrow">→</span> <b>PostgreSQL</b> <span class="arrow">→</span> <b>Dashboard public</b><br>
+  Fraudes détectées <span class="arrow">→</span> <b>Worker Cloudflare</b> <span class="arrow">→</span> <b>Telegram</b> (notification instantanée aux admins)
+</div>
+
+<h2>2 · Les 6 clouds et leurs rôles</h2>
+<table>
+  <tr><th>Type</th><th>Provider</th><th>Composant</th><th>Rôle</th></tr>
+  <tr><td>PaaS</td><td><b>Vercel</b></td><td>Portail + Dashboard</td><td>Porte d'entrée des bureaux + page publique des résultats et alertes</td></tr>
+  <tr><td>PaaS</td><td><b>Render</b></td><td>API Ingestion + API Dashboard</td><td>Valide/authentifie les votes · lit PostgreSQL et les anomalies</td></tr>
+  <tr><td>IaaS</td><td><b>Azure</b> (primaire)</td><td>VM azure-1</td><td>Kafka, agrégateur, moteur d'anomalies, PostgreSQL = la source de vérité</td></tr>
+  <tr><td>IaaS</td><td><b>GCP</b></td><td>VM gcp-1</td><td>Prometheus (surveillance) + Grafana + Failover Controller (décide du cloud actif)</td></tr>
+  <tr><td>IaaS</td><td><b>Oracle</b> (secours)</td><td>VM oracle-1</td><td>Copie exacte d'Azure, synchronisée en continu (MirrorMaker 2 + Patroni)</td></tr>
+  <tr><td>FaaS</td><td><b>Cloudflare</b></td><td>Worker</td><td>Chaque anomalie → notification dans le groupe Telegram des admins</td></tr>
+  <tr><td>Réseau</td><td><b>Tailscale</b></td><td>Overlay chiffré</td><td>Relie les 3 VMs IaaS — aucun port exposé publiquement</td></tr>
+</table>
+
+<h2>3 · Le mécanisme star : le failover</h2>
+<ul>
+  <li>Prometheus sonde en permanence les métriques d'Azure et d'Oracle.</li>
+  <li>Si Azure tombe en panne → alerte <b>AzureDown</b> → le Failover Controller répond « <b>oracle</b> » quand on lui demande le cloud actif.</li>
+  <li>L'API d'ingestion route alors tous les nouveaux votes vers Oracle, déjà synchronisé : <b>aucune voix perdue</b>. Quand Azure revient, tout se resynchronise (MirrorMaker 2 et Patroni le gèrent).</li>
+</ul>
+
+<h2>4 · Où on en est</h2>
+<table>
+  <tr><th>Élément</th><th>État</th></tr>
+  <tr><td>Code des 6 clouds (services, portal, dashboard, worker, configs)</td><td><span class="tag ok">FAIT — testé</span></td></tr>
+  <tr><td>Pipeline complet validé en local (Docker) : votes → agrégation → détection de fraude → dashboard</td><td><span class="tag ok">FAIT — 9/9 tests</span></td></tr>
+  <tr><td>Comptes cloud (8 à créer : Azure, Oracle, GCP, Render, Vercel, Cloudflare, Tailscale, Telegram)</td><td><span class="tag todo">À FAIRE — chacun son compte</span></td></tr>
+  <tr><td>3 VMs (azure-1, oracle-1, gcp-1) + réseau Tailscale</td><td><span class="tag todo">À FAIRE</span></td></tr>
+  <tr><td>Réplication (Patroni + MirrorMaker 2), déploiement PaaS/FaaS, démo de bascule</td><td><span class="tag todo">À FAIRE</span></td></tr>
+</table>
+
+<h2>5 · Répartition pour la soutenance</h2>
+<table>
+  <tr><th>Membre</th><th>Services à montrer déployés (en direct sur la console du provider)</th></tr>
+  <tr><td><b>Aya</b></td><td>Azure : VM primaire (Kafka + PostgreSQL + agrégateur + moteur d'anomalies)</td></tr>
+  <tr><td><b>Membre 2</b></td><td>Render (2 APIs) + Vercel (portail + dashboard)</td></tr>
+  <tr><td><b>Membre 3</b></td><td>Oracle (VM secours) + MirrorMaker 2 + Patroni (réplication)</td></tr>
+  <tr><td><b>Membre 4</b></td><td>GCP (Prometheus + Grafana + Failover Controller) + Worker Cloudflare + Tailscale</td></tr>
+</table>
+<div class="key">⚠️ <b>Critères du prof :</b> ce qui est noté = les <b>services déployés et fonctionnels sur la plateforme du provider</b> (pas le code) · + de services intégrés = + de points · chaque membre présente <b>au moins un service</b> avec un scénario d'utilisation.</div>
+
+<h2>6 · Démo en 3 commandes (chaque membre doit savoir la rejouer)</h2>
+<div class="cmd">docker compose up -d                # Kafka + PostgreSQL + Prometheus + Grafana
+python -m services.ingestion_api.main &  python -m services.aggregator.main &
+python -m services.anomaly_engine.main & python -m services.dashboard_api.main
+
+python -m simulators.polling_station --stations 5 --interval 2 --rounds 3              # votes honnêtes
+python -m simulators.polling_station --stations 2 --rounds 4 --fraud turnout           # fraude !
+
+# Voir les résultats :   http://localhost:8001/elections/national-2026
+# Voir les alertes :     http://localhost:8001/anomalies   ·  Grafana : http://localhost:3001 (admin/admin)</div>
+
+<div class="foot">Fiche simplifiée — Projet Élections · v1 · 22/11/2026 · détails complets : README.md et docs/01→05</div>
+
+</body>
+</html>

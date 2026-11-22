@@ -42,7 +42,8 @@ def make_station(i: int) -> dict:
         "registered_voters": rng.randint(500, 5000),
         "ballots_cast": 0,             # cumulative counter
         "per_candidate": {"Cand. A": 0, "Cand. B": 0},
-        "polls_closed_at": datetime.now(timezone.utc) - timedelta(hours=1),
+        # closed 5s ago: honest stations report within the MAX_POLL_DELAY_SECONDS window
+        "polls_closed_at": datetime.now(timezone.utc) - timedelta(seconds=5),
     }
 
 
@@ -61,9 +62,10 @@ def build_report(station: dict, fraud: str | None, last_report: dict | None) -> 
     station["per_candidate"]["Cand. B"] += fresh - int(fresh * share)
 
     closed = station["polls_closed_at"]
-    published = datetime.now(timezone.utc)
     if fraud == "late":
-        published = closed + timedelta(hours=2)
+        # this station closed its poll long ago and is only reporting now:
+        # the ingestion stamps published_at=now, so the delay will exceed the limit
+        closed = datetime.now(timezone.utc) - timedelta(hours=2)
 
     report = {
         "report_id": last_report["report_id"] if fraud == "dup" else uuid.uuid4().hex,

@@ -23,14 +23,16 @@ groups:
         annotations:
           summary: "Azure saturated (> 90 % CPU)"
 
-      - alert: OracleDown
-        expr: up{job=~"oracle-.*"} == 0 or absent(up{job="oracle-node"})
-        for: 15s
-        labels:
-          severity: critical
-          cloud: oracle
-        annotations:
-          summary: "Oracle (standby) unreachable — losing the second plan!"
+      # enable as soon as oracle-1 exists (otherwise this alert fires
+      # permanently — the oracle targets simply do not exist yet)
+      # - alert: OracleDown
+      #   expr: up{job=~"oracle-.*"} == 0 or absent(up{job="oracle-node"})
+      #   for: 15s
+      #   labels:
+      #     severity: critical
+      #     cloud: oracle
+      #   annotations:
+      #     summary: "Oracle (standby) unreachable — losing the second plan!"
 
       - alert: PostgreSQLReplicationLag
         expr: pg_replication_lag_seconds > 5
@@ -38,12 +40,12 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Patroni replication lagging: zero data loss at risk"
+          summary: "PostgreSQL replication lagging: zero data loss at risk"
 
       - alert: KafkaReplicationGap
-        expr: mm2_mirroring_lag > 100
+        expr: kafka_replication_gap > 100
         for: 20s
         labels:
           severity: warning
         annotations:
-          summary: "kafka MirrorMaker 2 lagging between Azure and Oracle"
+          summary: "Kafka replication lagging between Azure and Oracle"

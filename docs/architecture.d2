@@ -1,0 +1,153 @@
+direction: down
+
+polling: Registered Polling Stations {
+  style.fill: "#e0f2fe"
+  style.stroke: "#0284c7"
+}
+
+ingestion: Ingestion API\n(PaaS — Render) {
+  shape: image
+  icon: https://cdn.simpleicons.org/render
+}
+
+dashboard_api: Dashboard API\n(PaaS — Render) {
+  shape: image
+  icon: https://cdn.simpleicons.org/render
+}
+
+vercel: Public Dashboard\n(PaaS — Vercel) {
+  shape: image
+  icon: https://cdn.simpleicons.org/vercel
+}
+
+public: The Public {
+  shape: person
+}
+
+cloudflare: Cloudflare Workers\n(FaaS) {
+  shape: image
+  icon: https://cdn.simpleicons.org/cloudflare
+}
+
+telegram: Telegram {
+  shape: image
+  icon: https://cdn.simpleicons.org/telegram
+}
+
+tailscale: Tailscale Secure Overlay {
+  style.fill: "#f8fafc"
+  style.stroke: "#94a3b8"
+  style.border-radius: 12
+  icon: https://cdn.simpleicons.org/tailscale
+
+  azure: Azure — Primary (IaaS) {
+    style.fill: "#dbeafe"
+    style.stroke: "#3b82f6"
+    icon: ./assets/azure-logo.svg
+
+    kafka_az: Kafka Brokers {
+      shape: image
+      icon: https://cdn.simpleicons.org/apachekafka
+    }
+    agg_az: Aggregator {
+      shape: image
+      icon: https://cdn.simpleicons.org/python
+    }
+    anomaly_az: Anomaly Engine {
+      shape: image
+      icon: https://cdn.simpleicons.org/python
+    }
+    pg_az: PostgreSQL (Primary) {
+      shape: image
+      icon: https://cdn.simpleicons.org/postgresql
+    }
+  }
+
+  oracle: Oracle — Backup (IaaS)\nreplaces Azure on failover {
+    style.fill: "#fee2e2"
+    style.stroke: "#ef4444"
+    icon: ./assets/oracle-logo.svg
+
+    kafka_or: Kafka Brokers {
+      shape: image
+      icon: https://cdn.simpleicons.org/apachekafka
+    }
+    agg_or: Aggregator {
+      shape: image
+      icon: https://cdn.simpleicons.org/python
+    }
+    anomaly_or: Anomaly Engine {
+      shape: image
+      icon: https://cdn.simpleicons.org/python
+    }
+    pg_or: PostgreSQL (Backup) {
+      shape: image
+      icon: https://cdn.simpleicons.org/postgresql
+    }
+  }
+
+  google: Google Cloud — Monitoring (IaaS) {
+    style.fill: "#dcfce7"
+    style.stroke: "#22c55e"
+    icon: https://cdn.simpleicons.org/googlecloud
+
+    prometheus: Prometheus {
+      shape: image
+      icon: https://cdn.simpleicons.org/prometheus
+    }
+    grafana: Grafana {
+      shape: image
+      icon: https://cdn.simpleicons.org/grafana
+    }
+    prometheus -> grafana: dashboards
+  }
+}
+
+polling -> ingestion: publish counted votes
+ingestion -> kafka_az: forward votes
+ingestion -> kafka_or: forward votes
+kafka_az -> agg_az: votes
+kafka_az -> anomaly_az: votes
+kafka_or -> agg_or: votes
+kafka_or -> anomaly_or: votes
+agg_az -> pg_az: store aggregates
+agg_or -> pg_or: store aggregates
+anomaly_az -> kafka_az: anomaly messages {
+  style.stroke: "#f97316"
+  style.stroke-width: 3
+}
+anomaly_or -> kafka_or: anomaly messages {
+  style.stroke: "#f97316"
+  style.stroke-width: 3
+}
+pg_az -> pg_or: auto-sync {
+  style.stroke: "#3b82f6"
+  style.stroke-dash: 4
+}
+kafka_az -> dashboard_api: anomalies {
+  style.stroke: "#f97316"
+  style.stroke-width: 3
+}
+kafka_or -> dashboard_api: anomalies {
+  style.stroke: "#f97316"
+  style.stroke-width: 3
+}
+kafka_az -> cloudflare: anomalies {
+  style.stroke: "#f97316"
+  style.stroke-width: 3
+}
+kafka_or -> cloudflare: anomalies {
+  style.stroke: "#f97316"
+  style.stroke-width: 3
+}
+cloudflare -> telegram: notify
+dashboard_api -> vercel: populate dashboard
+public -> vercel: view live results & anomalies
+azure -> google: metrics {
+  style.stroke: "#f59e0b"
+  style.stroke-dash: 4
+}
+oracle -> google: metrics {
+  style.stroke: "#f59e0b"
+  style.stroke-dash: 4
+}

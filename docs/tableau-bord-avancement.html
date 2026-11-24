@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1a2332; margin: 0; background: #f2f5fa; font-size: 12px; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 16px; }
+  .banner { background: linear-gradient(135deg,#16305c,#2e6fdb); color: #fff; padding: 18px 22px; border-radius: 10px; }
+  .banner h1 { margin: 0; font-size: 20px; }
+  .banner p { margin: 5px 0 0; color: #cdd9f2; }
+  h2 { font-size: 14px; color: #16305c; margin: 18px 0 8px; border-bottom: 2px solid #2e6fdb; padding-bottom: 3px; }
+  .grid { display: flex; gap: 12px; flex-wrap: wrap; }
+  .card { background: #fff; border: 1px solid #d5e0f2; border-radius: 10px; padding: 12px 14px; flex: 1; min-width: 260px; }
+  .stat { font-size: 20px; font-weight: 700; color: #16305c; }
+  .sub { color: #6b7686; font-size: 11px; }
+  .ok  { display:inline-block; background:#d9f2e0; color:#14713d; padding:1px 8px; border-radius:9px; font-size:10.5px; font-weight:600; }
+  .todo{ display:inline-block; background:#fde3d3; color:#a34a00; padding:1px 8px; border-radius:9px; font-size:10.5px; font-weight:600; }
+  .run { display:inline-block; background:#d6e8fb; color:#1c4fa1; padding:1px 8px; border-radius:9px; font-size:10.5px; font-weight:600; }
+  table { width:100%; border-collapse: collapse; background:#fff; border-radius:8px; overflow:hidden; }
+  th { background:#16305c; color:#fff; text-align:left; padding:5px 9px; font-size:11px; }
+  td { border:1px solid #e2e8f2; padding:5px 9px; font-size:11.5px; vertical-align:top; }
+  .term { background:#101a2e; color:#9fe8b5; padding:10px 12px; border-radius:8px; font-family:Consolas,monospace; font-size:10.5px; white-space:pre; }
+  .term .t { color:#7fa3d9; }
+  .timeline { border-left: 3px solid #2e6fdb; margin-left: 8px; padding-left: 16px; }
+  .tl { margin: 0 0 10px; position: relative; }
+  .tl::before { content:""; position:absolute; left:-23px; top:3px; width:11px; height:11px; border-radius:50%; background:#2e6fdb; border:2px solid #fff; }
+  .tl b { color:#16305c; }
+  .tl .d { color:#6b7686; font-size:10.5px; }
+  .next { background:#fff7e0; border-left:4px solid #e6a817; padding:8px 12px; border-radius:0 8px 8px 0; }
+  a { color:#2e6fdb; font-weight:600; text-decoration:none; }
+  .foot { color:#6b7686; font-size:10px; text-align:center; margin-top:14px; }
+</style>
+</head>
+<body><div class="wrap">
+
+<div class="banner">
+  <h1>🗳️ Projet Élections — Tableau de bord de l'avancement</h1>
+  <p>Aya · Diae · Hind · Ibtissam — ce qu'on a construit ensemble, avec les preuves en direct</p>
+</div>
+
+<h2>☁️ En direct depuis la VM azure-1 (Azure) — relevé d'il y a 1 minute</h2>
+<div class="grid">
+  <div class="card"><div class="stat">5 / 5</div><div class="sub">services actifs (systemd) — Kafka · PostgreSQL · relay · agrégateur · moteur d'anomalies</div><span class="ok">TOUT VERT</span></div>
+  <div class="card"><div class="stat">3 topics</div><div class="sub">vote_reports · aggregated_results · anomalies (Kafka 3.7.1 KRaft)</div><span class="ok">FONCTIONNEL</span></div>
+  <div class="card"><div class="stat">1.1 / 3.8 Go</div><div class="sub">RAM utilisée sur la VM B2als v2 (2 vCPU) — marge confortable</div><span class="run">SAIN</span></div>
+  <div class="card"><div class="stat">100.80.90.119</div><div class="sub">IP Tailscale d'azure-1 (réseau privé chiffré, 0 port public)</div><span class="run">CONNECTÉ</span></div>
+</div>
+
+<h2>🔬 La preuve du bout en bout (capture réelle d'azure-1)</h2>
+<div class="term">POST vote → relay Kafka (:8300)
+{"accepted":1,"cloud":"azure"}
+
+Vote visible dans la source de vérité PostgreSQL :
+station-102 | Rabat | 900 bulletins   ← <b>le vote de test est stocké dans le cloud primaire</b>
+
+$ systemctl is-active kafka postgresql elections-aggregator elections-anomaly_engine elections-kafka_relay
+active  active  active  active  active</div>
+
+<h2>🗓️ Ce qu'on a fait ensemble (journal de bord)</h2>
+<div class="timeline">
+  <div class="tl"><b>Session 1 — 18 nov. · Base locale</b> <span class="d">(commits 101f90f, 71e08db)</span><br>
+  Pipeline complet validé en local : simulateurs → ingestion → Kafka → agrégateur → PostgreSQL → anomalies → dashboard (29 anomalies détectées) · 9/9 tests ✅ · processus fantôme du port 8000 éliminé · fausses alertes <i>late_submission</i> corrigées → démo propre</div>
+  <div class="tl"><b>Session 2 — 22 nov. · Documentation</b> <span class="d">(commit 1c206bb)</span><br>
+  Fiche technique simplifiée du groupe (PDF 1 page dans docs/) · liste des 8 comptes cloud · répartition par membre pour la soutenance</div>
+  <div class="tl"><b>Session 3 — 23 nov. · Le cloud primaire Azure, de zéro à opérationnel</b> <span class="d">(aujourd'hui)</span><br>
+  Comptes créés (Azure Student, Vercel, Render, Oracle en vérif., GCP en cours) → VM <b>azure-1</b> créée + redimensionnée vers 4 Go → SSH sécurisé par clé → Tailscale <b>100.80.90.119</b> → PostgreSQL 16 (user/base/schéma/accès réseau) → Kafka 3.7.1 KRaft en systemd (3 topics) → code déployé (relay + agrégateur + moteur d'anomalies) → 3 services systemd → <b>test de bout en bout réussi dans le vrai cloud</b> 🎉</div>
+</div>
+
+<h2>💻 La démo locale tourne toujours (Docker, 5 jours d'up)</h2>
+<div class="grid">
+  <div class="card"><span class="run">LIVE</span> <a href="http://localhost:8001/elections/national-2026">Résultats temps réel</a> — <span class="sub">dashboard API local</span></div>
+  <div class="card"><span class="run">LIVE</span> <a href="http://localhost:8001/anomalies">Alertes fraude</a> — <span class="sub">29+ anomalies détectées par les 5 règles</span></div>
+  <div class="card"><span class="run">LIVE</span> <a href="http://localhost:3001">Grafana</a> (admin/admin) · <a href="http://localhost:9090">Prometheus</a> · <a href="http://localhost:8000/docs">Ingestion API</a></div>
+</div>
+
+<h2>📊 Score soutenance (services déployés sur les plateformes providers)</h2>
+<table>
+  <tr><th>Provider</th><th>Service</th><th>État</th></tr>
+  <tr><td><b>Azure</b> (IaaS) — ta part 👑</td><td>VM azure-1 : Kafka + PostgreSQL + relay + agrégateur + moteur d'anomalies, systemd, Tailscale</td><td><span class="ok">DÉPLOYÉ — testé bout en bout</span></td></tr>
+  <tr><td>Render (PaaS)</td><td>API ingestion + API dashboard</td><td><span class="todo">compte prêt, à déployer (via GitHub)</span></td></tr>
+  <tr><td>Vercel (PaaS)</td><td>Portail + dashboard public</td><td><span class="todo">compte prêt, à déployer</span></td></tr>
+  <tr><td>GCP (IaaS)</td><td>Prometheus + Grafana + Failover Controller + etcd</td><td><span class="todo">compte en cours</span></td></tr>
+  <tr><td>Oracle (IaaS)</td><td>VM standby + MirrorMaker 2 + Patroni</td><td><span class="todo">compte en vérification (~1 sem.)</span></td></tr>
+  <tr><td>Cloudflare (FaaS)</td><td>Worker → Telegram</td><td><span class="todo">code prêt, à déployer</span></td></tr>
+  <tr><td>Tailscale (réseau)</td><td>azure-1 connectée</td><td><span class="run">1/3 machines</span></td></tr>
+</table>
+
+<div class="next">➡️ <b>Prochaines étapes (dans l'ordre) :</b> 1) push GitHub (10 min) → 2) déploiement Render (2 APIs) + Vercel (portal/dashboard) → 3) VM gcp-1 (Prometheus + Failover Controller) → 4) oracle-1 + réplication → 5) 🎬 démo de bascule Azure→Oracle</div>
+
+<div class="foot">Projet Élections — multi-cloud temps réel · généré le 23/11/2026 · tout est reproductible via l'historique des sessions</div>
+
+</div></body>
+</html>
